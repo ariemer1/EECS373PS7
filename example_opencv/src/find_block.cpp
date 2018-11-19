@@ -11,10 +11,24 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <geometry_msgs/PoseStamped.h>
 #include <xform_utils/xform_utils.h>
+#include <cmath>
 
 static const std::string OPENCV_WINDOW = "Open-CV display window";
 using namespace std;
 
+double scale = 0.002967; //ORIGINAL
+//double g_scale = 0.0030197051;
+double central_X = 0.543;
+double central_Y = 0.321;
+int central_I = 319;
+int central_J = 239;
+double t_theta = 0.205048;
+
+// Temp stuff used to replace what theta is meant to be, used in getting value for the transofrm matrix
+//double quatX = 1.021206909;
+double quatX = 0.9800639326;
+//double quatY = -.2070351423;
+double quatY = -0.1986823795;
 int g_redratio; //threshold to decide if a pixel qualifies as dominantly "red"
 
 const double BLOCK_HEIGHT=0.035; // hard-coded top surface of block relative to world frame
@@ -90,7 +104,7 @@ void ImageConverter::imageCb(const sensor_msgs::ImageConstPtr& msg){
                     cv_ptr->image.at<cv::Vec3b>(j, i)[2] = 255;
                     npix++; //note that found another red pixel
                     isum += i; //accumulate row and col index vals
-                    jsum += j;
+                    jsum += j;                 
                 } else { //else paint it black
                     cv_ptr->image.at<cv::Vec3b>(j, i)[0] = 0;
                     cv_ptr->image.at<cv::Vec3b>(j, i)[1] = 0;
@@ -98,6 +112,7 @@ void ImageConverter::imageCb(const sensor_msgs::ImageConstPtr& msg){
                 }
             }
         }
+        
         //cout << "npix: " << npix << endl;
         //paint in a blue square at the centroid:
         int half_box = 5; // choose size of box to paint
@@ -132,14 +147,18 @@ void ImageConverter::imageCb(const sensor_msgs::ImageConstPtr& msg){
         //rosrun image_view image_view image:=/image_converter/output_video
         image_pub_.publish(cv_ptr->toImageMsg());
         
-        block_pose_.pose.position.x = i_centroid; //not true, but legal
-        block_pose_.pose.position.y = j_centroid; //not true, but legal
-        double theta=0;
+        // Values for U and V, used for finding the rest
+        double u = (i_centroid - central_I) * scale;
+        double v = (j_centroid - central_J) * scale;
+        
+        block_pose_.pose.position.x = cos(t_theta) * u - sin(t_theta) * v + central_X; //not true, but legal
+        block_pose_.pose.position.y = quatY * u - quatX * v + central_Y; // Values obtained using the same J value to fill out the matrix
+        double theta=t_theta; // was 0 
         
         // need camera info to fill in x,y,and orientation x,y,z,w
         //geometry_msgs::Quaternion quat_est
         //quat_est = xformUtils.convertPlanarPsi2Quaternion(yaw_est);
-        block_pose_.pose.orientation = xformUtils.convertPlanarPsi2Quaternion(theta); //not true, but legal
+        //block_pose_.pose.orientation = xformUtils.convertPlanarPsi2Quaternion(angle); //not true, but legal
         block_pose_publisher_.publish(block_pose_);
     }
 

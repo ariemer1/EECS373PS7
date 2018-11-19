@@ -9,3 +9,4 @@ simu of robot, block-finder node and cartesian-move action server
 
 see output of block finder with:
 `rostopic echo /block_pose`
+# EECS373PS7
